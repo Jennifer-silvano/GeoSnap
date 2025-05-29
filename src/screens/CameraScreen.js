@@ -63,6 +63,60 @@ const CameraScreen = ({ user, navigation }) => {
     }
   };
 
+  // Função getLocation movida para fora e corrigida
+  const getLocation = async () => {
+    try {
+      // Usar o método correto do LocationService
+      const result = await LocationService.getCurrentLocation();
+      
+      if (result.success && result.location) {
+        const locationData = result.location;
+        
+        // Tentar obter o endereço das coordenadas
+        const addressResult = await LocationService.reverseGeocode(
+          locationData.latitude, 
+          locationData.longitude
+        );
+        
+        let finalLocation = {
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          accuracy: locationData.accuracy,
+          timestamp: locationData.timestamp
+        };
+        
+        if (addressResult.success && addressResult.address) {
+          finalLocation.name = addressResult.address.formattedAddress;
+          setLocation(finalLocation);
+          Alert.alert('✅ Localização', `📍 ${addressResult.address.formattedAddress}`);
+        } else {
+          // Se não conseguir o endereço, usar coordenadas
+          finalLocation.name = `${locationData.latitude.toFixed(4)}, ${locationData.longitude.toFixed(4)}`;
+          setLocation(finalLocation);
+          Alert.alert('⚠️ Localização', 
+            `📍 Coordenadas obtidas\nLat: ${locationData.latitude.toFixed(4)}, Lng: ${locationData.longitude.toFixed(4)}`
+          );
+        }
+      } else {
+        // Tratar erros específicos do LocationService
+        if (result.needsLocationServices) {
+          Alert.alert('❌ GPS Desabilitado', 
+            'Ative a localização nas configurações do seu dispositivo',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Configurações', onPress: () => LocationService.showLocationServicesAlert() }
+            ]
+          );
+        } else {
+          Alert.alert('❌ Erro', result.error || 'Não foi possível obter localização');
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao obter localização:', error);
+      Alert.alert('❌ Erro', 'Erro inesperado ao obter localização. Tente novamente.');
+    }
+  };
+
   const takePicture = async () => {
     if (cameraRef.current && isCameraReady) {
       try {
@@ -71,29 +125,13 @@ const CameraScreen = ({ user, navigation }) => {
           base64: false,
         });
         setCapturedPhoto(photo);
-        
+     
         // Tentar obter localização automaticamente após tirar a foto
         getLocation();
       } catch (error) {
         console.error('Erro ao tirar foto:', error);
         Alert.alert('Erro', 'Não foi possível tirar a foto');
       }
-    }
-  };
-
-  const getLocation = async () => {
-    try {
-      const locationData = await LocationService.getCurrentLocation();
-      setLocation(locationData);
-      
-      if (locationData && locationData.name) {
-        Alert.alert('Sucesso', `Localização obtida: ${locationData.name}`);
-      } else {
-        Alert.alert('Aviso', 'Localização obtida, mas sem nome identificado');
-      }
-    } catch (error) {
-      console.error('Erro ao obter localização:', error);
-      Alert.alert('Erro', 'Não foi possível obter a localização. Verifique se o GPS está ativado.');
     }
   };
 

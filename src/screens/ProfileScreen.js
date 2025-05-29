@@ -10,9 +10,11 @@ import {
   SafeAreaView,
   Dimensions,
   StatusBar,
-  Platform
+  Platform,
+  RefreshControl
 } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Database from '../database/Database';
 import PhotoGrid from '../components/PhotoGrid';
@@ -21,18 +23,22 @@ import AlbumGrid from '../components/AlbumGrid';
 const { width, height } = Dimensions.get('window');
 const Tab = createMaterialTopTabNavigator();
 
-const ImagesTab = ({ photos, navigation }) => (
+const ImagesTab = ({ photos, navigation, onRefresh, refreshing, onDeletePhoto, user }) => (
   <PhotoGrid 
     photos={photos} 
     onPhotoPress={(photo) => {
-      // Aqui você pode navegar para uma tela de detalhes da foto
+      // Navegar para uma tela de detalhes da foto
       console.log('Foto pressionada:', photo);
+      navigation.navigate('PhotoDetail', { photo, user });
     }}
-    onRefresh={() => console.log('Atualizando fotos...')}
+    onRefresh={onRefresh}
+    refreshing={refreshing}
+    onDeletePhoto={onDeletePhoto}
+    showDeleteOption={true}
   />
 );
 
-const AlbumsTab = ({ photos, navigation }) => {
+const AlbumsTab = ({ photos, navigation, onRefresh, refreshing }) => {
   // Agrupa fotos por localização para criar álbuns
   const albumsArray = Object.entries(
     photos.reduce((acc, photo) => {
@@ -67,7 +73,8 @@ const AlbumsTab = ({ photos, navigation }) => {
           photos: album.photos 
         });
       }}
-      onRefresh={() => console.log('Atualizando álbuns...')}
+      onRefresh={onRefresh}
+      refreshing={refreshing}
     />
   );
 };
@@ -75,13 +82,19 @@ const AlbumsTab = ({ photos, navigation }) => {
 const ProfileScreen = ({ user, onLogout, navigation }) => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editName, setEditName] = useState(user.name);
+  const [userStats, setUserStats] = useState({ photoCount: 0, locationsCount: 0 });
 
-  useEffect(() => {
-    loadUserPhotos();
-  }, []);
+  // Recarregar dados quando a tela receber foco
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserPhotos();
+      loadUserStats();
+    }, [])
+  );
 
   const loadUserPhotos = async () => {
     try {
@@ -89,19 +102,64 @@ const ProfileScreen = ({ user, onLogout, navigation }) => {
       setPhotos(userPhotos);
     } catch (error) {
       console.error('Erro ao carregar fotos do usuário:', error);
+      Alert.alert('Erro', 'Não foi possível carregar suas fotos');
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const loadUserStats = async () => {
+    try {
+      const stats = await Database.getUserStats(user.id);
+      setUserStats(stats);
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadUserPhotos();
+    loadUserStats();
+  };
+
+  const handleDeletePhoto = async (photoId) => {
+    try {
+      const success = await Database.deletePhoto(photoId);
+      if (success) {
+        Alert.alert('Sucesso', 'Foto removida com sucesso!');
+        // Recarregar fotos após deletar
+        loadUserPhotos();
+        loadUserStats();
+      } else {
+        Alert.alert('Erro', 'Não foi possível remover a foto');
+      }
+    } catch (error) {
+      console.error('Erro ao deletar foto:', error);
+      Alert.alert('Erro', 'Erro inesperado ao remover foto');
     }
   };
 
   const handleEditProfile = async () => {
+    if (!editName.trim()) {
+      Alert.alert('Erro', 'O nome não pode estar vazio');
+      return;
+    }
+
     try {
-      // Aqui você implementaria a atualização no banco
-      // await Database.updateUser(user.id, editName);
-      Alert.alert('Sucesso', 'Perfil atualizado!');
-      setShowEditProfile(false);
+      const success = await Database.updateUser(user.id, editName.trim());
+      if (success) {
+        // Atualizar o objeto user
+        user.name = editName.trim();
+        Alert.alert('Sucesso', 'Perfil atualizado!');
+        setShowEditProfile(false);
+      } else {
+        Alert.alert('Erro', 'Não foi possível atualizar o perfil');
+      }
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível atualizar o perfil');
+      console.error('Erro ao atualizar perfil:', error);
+      Alert.alert('Erro', 'Erro inesperado ao atualizar perfil');
     }
   };
 
@@ -120,7 +178,7 @@ const ProfileScreen = ({ user, onLogout, navigation }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
-      {/* Header do Perfil */}
+      {/* Header do Perfil - Corrigido */}
       <View style={styles.header}>
         <View style={styles.profileInfo}>
           <View style={styles.avatar}>
@@ -130,9 +188,19 @@ const ProfileScreen = ({ user, onLogout, navigation }) => {
           </View>
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{user.name}</Text>
-            <Text style={styles.photoCount}>
-              {photos.length} {photos.length === 1 ? 'foto' : 'fotos'}
-            </Text>
+            <View style={styles.statsContainer}>
+              <Text style={styles.statItem}>
+                {userStats.photoCount} {userStats.photoCount === 1 ? 'foto' : 'fotos'}
+              </Text>
+              {userStats.locationsCount > 0 && (
+                <>
+                  <Text style={styles.statSeparator}>•</Text>
+                  <Text style={styles.statItem}>
+                    {userStats.locationsCount} {userStats.locationsCount === 1 ? 'local' : 'locais'}
+                  </Text>
+                </>
+              )}
+            </View>
           </View>
         </View>
         
@@ -141,13 +209,14 @@ const ProfileScreen = ({ user, onLogout, navigation }) => {
           onPress={() => setShowSettings(true)}
           activeOpacity={0.7}
         >
-          <Ionicons name="settings-outline" size={26} color="#666" />
+          <Ionicons name="settings-outline" size={24} color="#666" />
         </TouchableOpacity>
       </View>
 
       {/* Abas de Conteúdo */}
       {loading ? (
         <View style={styles.centered}>
+          <Ionicons name="images-outline" size={48} color="#4A90E2" />
           <Text style={styles.loadingText}>Carregando suas aventuras...</Text>
         </View>
       ) : (
@@ -155,7 +224,7 @@ const ProfileScreen = ({ user, onLogout, navigation }) => {
           screenOptions={{
             tabBarLabelStyle: { 
               fontSize: 14, 
-              fontWeight: 'bold',
+              fontWeight: '600',
               textTransform: 'none'
             },
             tabBarStyle: { 
@@ -169,20 +238,37 @@ const ProfileScreen = ({ user, onLogout, navigation }) => {
             tabBarInactiveTintColor: '#666',
             tabBarIndicatorStyle: { 
               backgroundColor: '#4A90E2',
-              height: 3
+              height: 3,
+              borderRadius: 1.5
             },
           }}
         >
           <Tab.Screen name="Images" options={{ title: 'Fotos' }}>
-            {() => <ImagesTab photos={photos} navigation={navigation} />}
+            {() => (
+              <ImagesTab 
+                photos={photos} 
+                navigation={navigation} 
+                onRefresh={handleRefresh}
+                refreshing={refreshing}
+                onDeletePhoto={handleDeletePhoto}
+                user={user}
+              />
+            )}
           </Tab.Screen>
           <Tab.Screen name="Albums" options={{ title: 'Álbuns' }}>
-            {() => <AlbumsTab photos={photos} navigation={navigation} />}
+            {() => (
+              <AlbumsTab 
+                photos={photos} 
+                navigation={navigation}
+                onRefresh={handleRefresh}
+                refreshing={refreshing}
+              />
+            )}
           </Tab.Screen>
         </Tab.Navigator>
       )}
 
-      {/* Modal de Configurações - Simplificado */}
+      {/* Modal de Configurações */}
       <Modal
         visible={showSettings}
         transparent
@@ -198,24 +284,26 @@ const ProfileScreen = ({ user, onLogout, navigation }) => {
               style={styles.modalOption}
               onPress={() => {
                 setShowSettings(false);
-                setShowEditProfile(true);
+                setTimeout(() => setShowEditProfile(true), 200);
               }}
               activeOpacity={0.7}
             >
               <Ionicons name="person-outline" size={22} color="#666" />
               <Text style={styles.modalOptionText}>Editar perfil</Text>
+              <Ionicons name="chevron-forward" size={18} color="#ccc" />
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={[styles.modalOption, styles.logoutOption]}
               onPress={() => {
                 setShowSettings(false);
-                handleLogout();
+                setTimeout(() => handleLogout(), 200);
               }}
               activeOpacity={0.7}
             >
               <Ionicons name="log-out-outline" size={22} color="#e74c3c" />
               <Text style={[styles.modalOptionText, styles.logoutText]}>Sair da conta</Text>
+              <Ionicons name="chevron-forward" size={18} color="#e74c3c" />
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -248,18 +336,18 @@ const ProfileScreen = ({ user, onLogout, navigation }) => {
               onChangeText={setEditName}
               placeholder="Seu nome"
               placeholderTextColor="#999"
+              maxLength={50}
             />
             
-            <Text style={styles.photoLabel}>Foto do perfil</Text>
-            <TouchableOpacity style={styles.photoButton}>
-              <Ionicons name="camera-outline" size={24} color="#4A90E2" />
-              <Text style={styles.photoButtonText}>Alterar foto</Text>
-            </TouchableOpacity>
+           
             
             <View style={styles.editButtons}>
               <TouchableOpacity 
                 style={styles.cancelEditButton}
-                onPress={() => setShowEditProfile(false)}
+                onPress={() => {
+                  setEditName(user.name);
+                  setShowEditProfile(false);
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={styles.cancelEditButtonText}>Cancelar</Text>
@@ -289,8 +377,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
@@ -312,13 +400,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#4A90E2',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 12,
     ...Platform.select({
       ios: {
         shadowColor: '#4A90E2',
@@ -333,37 +421,48 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: 'white',
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 'bold',
   },
   userInfo: {
     flex: 1,
   },
   userName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 2,
   },
-  photoCount: {
-    fontSize: 15,
+  statsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statItem: {
+    fontSize: 13,
     color: '#666',
+    fontWeight: '500',
+  },
+  statSeparator: {
+    fontSize: 13,
+    color: '#ccc',
+    marginHorizontal: 6,
   },
   settingsButton: {
-    padding: 12,
-    borderRadius: 8,
+    padding: 8,
+    borderRadius: 6,
     backgroundColor: '#f8f9fa',
-    marginLeft: 12,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   loadingText: {
     fontSize: 16,
     color: '#666',
-    marginTop: 8,
+    marginTop: 12,
+    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,
@@ -410,6 +509,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#333',
     fontWeight: '500',
+    flex: 1,
   },
   logoutOption: {
     borderBottomWidth: 0,

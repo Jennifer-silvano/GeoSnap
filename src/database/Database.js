@@ -37,6 +37,7 @@ class Database {
         longitude REAL,
         location_name TEXT,
         taken_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users (id)
       );
     `;
@@ -61,12 +62,42 @@ class Database {
     return result;
   }
 
-  async savePhoto(userId, uri, comment, latitude, longitude, locationName) {
+  // Método savePhoto corrigido para aceitar takenAt personalizado
+  async savePhoto(userId, uri, comment, latitude, longitude, locationName, takenAt = null) {
+    const timestamp = takenAt || new Date().toISOString();
     const result = await this.db.runAsync(
-      'INSERT INTO photos (user_id, uri, comment, latitude, longitude, location_name) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, uri, comment, latitude, longitude, locationName]
+      'INSERT INTO photos (user_id, uri, comment, latitude, longitude, location_name, taken_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId, uri, comment, latitude, longitude, locationName, timestamp]
     );
     return result.lastInsertRowId;
+  }
+
+  // Método deletePhoto implementado
+  async deletePhoto(photoId) {
+    try {
+      const result = await this.db.runAsync(
+        'DELETE FROM photos WHERE id = ?',
+        [photoId]
+      );
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Erro ao deletar foto:', error);
+      throw error;
+    }
+  }
+
+  // Método updateUser implementado
+  async updateUser(userId, name) {
+    try {
+      const result = await this.db.runAsync(
+        'UPDATE users SET name = ? WHERE id = ?',
+        [name, userId]
+      );
+      return result.changes > 0;
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      throw error;
+    }
   }
 
   async getUserPhotos(userId) {
@@ -85,6 +116,29 @@ class Database {
       ORDER BY p.taken_at DESC
     `);
     return result;
+  }
+
+  // Método para obter estatísticas do usuário
+  async getUserStats(userId) {
+    try {
+      const photoCount = await this.db.getFirstAsync(
+        'SELECT COUNT(*) as count FROM photos WHERE user_id = ?',
+        [userId]
+      );
+      
+      const locationsCount = await this.db.getFirstAsync(
+        'SELECT COUNT(DISTINCT location_name) as count FROM photos WHERE user_id = ? AND location_name IS NOT NULL',
+        [userId]
+      );
+
+      return {
+        photoCount: photoCount?.count || 0,
+        locationsCount: locationsCount?.count || 0
+      };
+    } catch (error) {
+      console.error('Erro ao obter estatísticas:', error);
+      return { photoCount: 0, locationsCount: 0 };
+    }
   }
 }
 

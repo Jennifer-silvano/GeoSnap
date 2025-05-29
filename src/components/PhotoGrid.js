@@ -8,19 +8,81 @@ import {
   StyleSheet,
   Text,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Alert,
+  Modal,
+  ScrollView
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import Database from '../database/Database';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const ITEM_SIZE = (width - 40) / 3; // 3 colunas com margem
 
-const PhotoGrid = ({ photos = [], onPhotoPress, onRefresh, refreshing = false }) => {
+const PhotoGrid = ({ photos = [], onPhotoPress, onRefresh, refreshing = false, user }) => {
   const [loading, setLoading] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handlePhotoPress = (photo) => {
-    if (onPhotoPress) {
-      onPhotoPress(photo);
+    setSelectedPhoto(photo);
+    setModalVisible(true);
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!selectedPhoto) return;
+
+    Alert.alert(
+      'Excluir Foto',
+      'Tem certeza que deseja excluir esta foto? Esta ação não pode ser desfeita.',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await Database.deletePhoto(selectedPhoto.id);
+              setModalVisible(false);
+              setSelectedPhoto(null);
+              Alert.alert('Sucesso', 'Foto excluída com sucesso!');
+              // Atualizar a lista de fotos
+              if (onRefresh) {
+                onRefresh();
+              }
+            } catch (error) {
+              console.error('Erro ao excluir foto:', error);
+              Alert.alert('Erro', 'Não foi possível excluir a foto');
+            }
+            setDeleting(false);
+          }
+        }
+      ]
+    );
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setSelectedPhoto(null);
+  };
+
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Data inválida';
     }
   };
 
@@ -68,6 +130,90 @@ const PhotoGrid = ({ photos = [], onPhotoPress, onRefresh, refreshing = false })
     </View>
   );
 
+  const renderPhotoModal = () => (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={modalVisible}
+      onRequestClose={closeModal}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Header com botão fechar */}
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={closeModal}
+              >
+                <Icon name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Imagem */}
+            {selectedPhoto && (
+              <>
+                <Image
+                  source={{ uri: selectedPhoto.uri }}
+                  style={styles.modalImage}
+                  resizeMode="contain"
+                />
+
+                {/* Informações da foto */}
+                <View style={styles.photoDetails}>
+                  {selectedPhoto.created_at && (
+                    <View style={styles.detailRow}>
+                      <Icon name="schedule" size={20} color="#666" />
+                      <Text style={styles.detailText}>
+                        {formatDate(selectedPhoto.created_at)}
+                      </Text>
+                    </View>
+                  )}
+
+                  {selectedPhoto.location_name && (
+                    <View style={styles.detailRow}>
+                      <Icon name="place" size={20} color="#666" />
+                      <Text style={styles.detailText}>
+                        {selectedPhoto.location_name}
+                      </Text>
+                    </View>
+                  )}
+
+                  {selectedPhoto.comment && (
+                    <View style={styles.detailRow}>
+                      <Icon name="chat-bubble-outline" size={20} color="#666" />
+                      <Text style={styles.detailText}>
+                        {selectedPhoto.comment}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Botões de ação */}
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={handleDeletePhoto}
+                    disabled={deleting}
+                  >
+                    <Icon 
+                      name="delete" 
+                      size={20} 
+                      color="#fff" 
+                    />
+                    <Text style={styles.deleteButtonText}>
+                      {deleting ? 'Excluindo...' : 'Excluir Foto'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -94,6 +240,8 @@ const PhotoGrid = ({ photos = [], onPhotoPress, onRefresh, refreshing = false })
           />
         }
       />
+      
+      {renderPhotoModal()}
     </View>
   );
 };
@@ -173,6 +321,70 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    maxHeight: height * 0.9,
+    width: width * 0.95,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  modalImage: {
+    width: '100%',
+    height: 300,
+    backgroundColor: '#f5f5f5',
+  },
+  photoDetails: {
+    padding: 20,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  detailText: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  actionButtons: {
+    padding: 20,
+    paddingTop: 0,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  deleteButton: {
+    backgroundColor: '#e74c3c',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 });
 
