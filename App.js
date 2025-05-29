@@ -10,11 +10,53 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import CameraScreen from './src/screens/CameraScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import AlbumDetailScreen from './src/screens/AlbumDetailScreen';
 
 import Database from './src/database/Database';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+function HomeStack({ user }) {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen 
+        name="HomeMain" 
+        options={{ title: 'Início', headerShown: false }}
+      >
+        {(props) => <HomeScreen {...props} user={user} />}
+      </Stack.Screen>
+    </Stack.Navigator>
+  );
+}
+
+function ProfileStack({ user, onLogout }) {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen 
+        name="ProfileMain" 
+        options={{ title: 'Perfil', headerShown: false }}
+      >
+        {(props) => <ProfileScreen {...props} user={user} onLogout={onLogout} />}
+      </Stack.Screen>
+      <Stack.Screen 
+        name="AlbumDetail" 
+        component={AlbumDetailScreen}
+        options={{ 
+          title: 'Detalhes do Álbum',
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTintColor: '#4A90E2',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerBackTitleVisible: false,
+        }}
+      />
+    </Stack.Navigator>
+  );
+}
 
 function TabNavigator({ user, onLogout }) {
   return (
@@ -29,16 +71,17 @@ function TabNavigator({ user, onLogout }) {
         },
         tabBarActiveTintColor: '#4A90E2',
         tabBarInactiveTintColor: 'gray',
+        headerShown: false,
       })}
     >
       <Tab.Screen name="Home" options={{ title: 'Início' }}>
-        {(props) => <HomeScreen {...props} user={user} />}
+        {(props) => <HomeStack {...props} user={user} />}
       </Tab.Screen>
       <Tab.Screen name="Camera" options={{ title: 'Câmera' }}>
         {(props) => <CameraScreen {...props} user={user} />}
       </Tab.Screen>
       <Tab.Screen name="Profile" options={{ title: 'Perfil' }}>
-        {(props) => <ProfileScreen {...props} user={user} onLogout={onLogout} />}
+        {(props) => <ProfileStack {...props} user={user} onLogout={onLogout} />}
       </Tab.Screen>
     </Tab.Navigator>
   );
