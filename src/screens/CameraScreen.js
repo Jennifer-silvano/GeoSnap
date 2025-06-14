@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, TextInput, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, TextInput, ScrollView, StatusBar, Platform} from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ const CameraScreen = ({ user, navigation }) => {
   const [location, setLocation] = useState(null);
   const [isPosting, setIsPosting] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [facing, setFacing] = useState('back'); // Novo estado para controlar câmera frontal/traseira
   const cameraRef = useRef(null);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ const CameraScreen = ({ user, navigation }) => {
       setComment('');
       setLocation(null);
       setIsCameraReady(false);
+      setFacing('back'); // Resetar para câmera traseira
       
       // Pequeno delay para garantir que a câmera seja reinicializada
       setTimeout(() => {
@@ -61,6 +63,11 @@ const CameraScreen = ({ user, navigation }) => {
       console.error('Erro ao solicitar permissões:', error);
       Alert.alert('Erro', 'Erro ao solicitar permissões necessárias');
     }
+  };
+
+  // Função para alternar entre câmeras
+  const toggleCameraFacing = () => {
+    setFacing(current => (current === 'back' ? 'front' : 'back'));
   };
 
   // Função getLocation movida para fora e corrigida
@@ -280,9 +287,23 @@ const CameraScreen = ({ user, navigation }) => {
         <CameraView 
           style={styles.camera} 
           ref={cameraRef}
+          facing={facing} // Prop para controlar qual câmera usar
           onCameraReady={onCameraReady}
         >
           <View style={styles.cameraControls}>
+            {/* Botão para alternar câmera */}
+            <TouchableOpacity 
+              style={styles.flipButton} 
+              onPress={toggleCameraFacing}
+              activeOpacity={0.8}
+            >
+              <Ionicons 
+                name="camera-reverse-outline" 
+                size={28} 
+                color="white" 
+              />
+            </TouchableOpacity>
+
             <TouchableOpacity 
               style={styles.captureButton} 
               onPress={takePicture}
@@ -305,14 +326,16 @@ const CameraScreen = ({ user, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#f2e9e1',
+       paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+
   },
   permissionContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
-    backgroundColor: '#fff',
+    backgroundColor: '##f2e9e1',
   },
   permissionTitle: {
     fontSize: 24,
@@ -355,6 +378,20 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     paddingBottom: 50,
+    position: 'relative',
+  },
+  flipButton: {
+    position: 'absolute',
+    top: 60,
+    right: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   captureButton: {
     width: 80,
@@ -392,14 +429,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderWidth: 1.5,
-    borderColor: '#4A90E2',
+    borderColor: '#335d4b',
     borderRadius: 8,
     minWidth: 120,
     justifyContent: 'center',
-    backgroundColor: '#f8f9ff',
+    backgroundColor: '#f5f5f5',
   },
   secondaryButtonText: {
-    color: '#4A90E2',
+    color: '#335d4b',
     marginLeft: 8,
     fontWeight: '600',
   },
@@ -407,12 +444,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
-    backgroundColor: '#f0f8f0',
+    backgroundColor: '#f5f5f5',
     marginHorizontal: 20,
     borderRadius: 8,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#27ae60',
+    borderColor: '#335d4b',
   },
   locationText: {
     marginLeft: 8,
@@ -429,24 +466,24 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginBottom: 20,
     borderWidth: 1.5,
-    borderColor: '#e0e0e0',
+    borderColor: '#335d4b',
     minHeight: 80,
   },
   button: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#335d4b',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginHorizontal: 20,
     marginBottom: 20,
-    shadowColor: '#4A90E2',
+    shadowColor: '#335d4b',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
   },
   buttonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#335d4b',
     shadowOpacity: 0,
     elevation: 0,
   },

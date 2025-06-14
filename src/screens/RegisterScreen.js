@@ -1,5 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  
+} from 'react-native';
 import Database from '../database/Database';
 
 const RegisterScreen = ({ navigation, onLogin }) => {
@@ -41,75 +54,111 @@ const RegisterScreen = ({ navigation, onLogin }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Cadastro</Text>
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Nome completo"
-        value={name}
-        onChangeText={setName}
+    <View style={styles.safeArea}>
+      <StatusBar 
+        barStyle="dark-content" 
+        backgroundColor="#f2e9e1" 
+        translucent={false}
       />
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Data de nascimento (DD/MM/AAAA)"
-        value={birthDate}
-        onChangeText={(text) => setBirthDate(formatDate(text))}
-        keyboardType="numeric"
-        maxLength={10}
-      />
-      
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={handleRegister}
-        disabled={loading}
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <Text style={styles.buttonText}>
-          {loading ? 'Cadastrando...' : 'Cadastrar'}
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.linkButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Text style={styles.linkText}>Já tem conta? Faça login</Text>
-      </TouchableOpacity>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.content}>
+            <Text style={styles.title}>Cadastro</Text>
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Nome completo"
+              placeholderTextColor="#999"
+              value={name}
+              onChangeText={setName}
+            />
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Senha"
+              placeholderTextColor="#999"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Data de nascimento (DD/MM/AAAA)"
+              placeholderTextColor="#999"
+              value={birthDate}
+              onChangeText={(text) => setBirthDate(formatDate(text))}
+              keyboardType="numeric"
+              maxLength={10}
+            />
+            
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={handleRegister}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Cadastrando...' : 'Cadastrar'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.linkButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.linkText}>Já tem conta? Faça login</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f2e9e1',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   container: {
     flex: 1,
-    padding: 20,
+    backgroundColor: '#f2e9e1',
+  },
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
+    paddingVertical: 20,
+  },
+  content: {
+    padding: 20,
+    minHeight: '100%',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 30,
-    color: '#333',
+    color: '#073022',
   },
   input: {
     backgroundColor: 'white',
@@ -119,9 +168,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+    color: '#073022',
   },
   button: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#073022',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
@@ -135,9 +185,10 @@ const styles = StyleSheet.create({
   linkButton: {
     marginTop: 20,
     alignItems: 'center',
+    paddingBottom: 20,
   },
   linkText: {
-    color: '#4A90E2',
+    color: '#073022',
     fontSize: 16,
   },
 });

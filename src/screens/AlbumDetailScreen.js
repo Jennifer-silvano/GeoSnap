@@ -10,7 +10,7 @@ import {
   StatusBar,
   Platform,
   Dimensions,
-  Alert
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { DateUtils } from '../utils/DateUtils';
@@ -261,7 +261,11 @@ const AlbumDetailScreen = ({ route, navigation }) => {
   if (!album) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <StatusBar 
+          barStyle="dark-content" 
+          backgroundColor="#f2e9e1" 
+          translucent={false}
+        />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle-outline" size={64} color="#e74c3c" />
           <Text style={styles.errorText}>Álbum não encontrado</Text>
@@ -279,7 +283,11 @@ const AlbumDetailScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar 
+        barStyle="dark-content" 
+        backgroundColor="#f2e9e1" 
+        translucent={false}
+      />
       
       <FlatList
         data={albumPhotos}
@@ -317,7 +325,12 @@ const AlbumDetailScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f2e9e1',
+    ...Platform.select({
+      android: {
+        paddingTop: StatusBar.currentHeight,
+      },
+    }),
   },
   listContainer: {
     paddingBottom: 20,
@@ -326,7 +339,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   headerContainer: {
-    backgroundColor: 'white',
+    backgroundColor: '#f2e9e1',
     padding: 20,
     marginBottom: 16,
     flexDirection: 'row',
@@ -481,10 +494,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#4A90E2',
+    borderColor: '#073022',
   },
   addPhotoButtonText: {
-    color: '#4A90E2',
+    color: '#073022',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -503,7 +516,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backToHomeButton: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#073022',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,

@@ -11,15 +11,30 @@ import {
   RefreshControl,
   Alert,
   Modal,
-  ScrollView
+  ScrollView,
+  Linking
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import Database from '../database/Database';
 
 const { width, height } = Dimensions.get('window');
 const ITEM_SIZE = (width - 40) / 3; // 3 colunas com margem
 
-const PhotoGrid = ({ photos = [], onPhotoPress, onRefresh, refreshing = false, user }) => {
+const PhotoGrid = ({ 
+  photos = [], 
+  onPhotoPress, 
+  onRefresh, 
+  refreshing = false, 
+  user,
+  onDeletePhoto,
+  onSharePhoto,
+  onShareWhatsApp,
+  showDeleteOption = false,
+  showShareOption = false,
+  showWhatsAppOption = false
+}) => {
   const [loading, setLoading] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -47,10 +62,18 @@ const PhotoGrid = ({ photos = [], onPhotoPress, onRefresh, refreshing = false, u
           onPress: async () => {
             setDeleting(true);
             try {
-              await Database.deletePhoto(selectedPhoto.id);
+              // Se existe uma função onDeletePhoto externa, usa ela
+              if (onDeletePhoto) {
+                await onDeletePhoto(selectedPhoto.id);
+              } else {
+                // Caso contrário, usa a função interna
+                await Database.deletePhoto(selectedPhoto.id);
+                Alert.alert('Sucesso', 'Foto excluída com sucesso!');
+              }
+              
               setModalVisible(false);
               setSelectedPhoto(null);
-              Alert.alert('Sucesso', 'Foto excluída com sucesso!');
+              
               // Atualizar a lista de fotos
               if (onRefresh) {
                 onRefresh();
@@ -64,6 +87,92 @@ const PhotoGrid = ({ photos = [], onPhotoPress, onRefresh, refreshing = false, u
         }
       ]
     );
+  };
+
+  // NOVA FUNÇÃO DE COMPARTILHAMENTO MELHORADA
+  const handleSharePhoto = async () => {
+    if (!selectedPhoto) return;
+    
+    try {
+      // Verificar se o dispositivo suporta compartilhamento
+      const isAvailable = await Sharing.isAvailableAsync();
+      
+      if (isAvailable) {
+        // Compartilhar usando Expo Sharing (mais confiável para imagens)
+        await Sharing.shareAsync(selectedPhoto.uri, {
+          mimeType: 'image/jpeg',
+          dialogTitle: 'Compartilhar foto do GeoSnap',
+          UTI: 'public.jpeg'
+        });
+      } else if (onSharePhoto) {
+        // Fallback para a função externa
+        onSharePhoto(selectedPhoto);
+      } else {
+        Alert.alert('Erro', 'Compartilhamento não disponível neste dispositivo');
+      }
+    } catch (error) {
+      console.error('Erro ao compartilhar:', error);
+      Alert.alert('Erro', 'Não foi possível compartilhar a foto');
+    }
+  };
+
+  // NOVA FUNÇÃO DE COMPARTILHAMENTO WHATSAPP MELHORADA
+  const handleShareWhatsApp = async () => {
+    if (!selectedPhoto) return;
+    
+    try {
+      // Solicitar permissão para acessar a biblioteca de mídia
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão necessária', 'Precisamos de permissão para salvar a foto temporariamente');
+        return;
+      }
+
+      // Salvar a foto na galeria
+      const asset = await MediaLibrary.createAssetAsync(selectedPhoto.uri);
+      
+      // Preparar mensagem
+      const message = `Olha essa foto incrível${selectedPhoto.location_name ? ` tirada no ${selectedPhoto.location_name}` : ''}! 📸 Compartilhada via GeoSnap!`;
+      
+      // Tentar abrir WhatsApp
+      const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
+      
+      const canOpen = await Linking.canOpenURL(whatsappUrl);
+      if (canOpen) {
+        await Linking.openURL(whatsappUrl);
+        
+        Alert.alert(
+          'WhatsApp aberto!', 
+          'A foto foi salva na galeria. No WhatsApp, toque no clipe para anexar a foto.',
+          [
+            {
+              text: 'Entendi'
+            },
+            {
+              text: 'Remover da Galeria',
+              onPress: async () => {
+                try {
+                  await MediaLibrary.deleteAssetsAsync([asset]);
+                  Alert.alert('OK', 'Foto temporária removida da galeria');
+                } catch (error) {
+                  console.log('Erro ao remover foto temporária:', error);
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        // WhatsApp não instalado, usar compartilhamento geral
+        await handleSharePhoto();
+      }
+    } catch (error) {
+      console.error('Erro no WhatsApp:', error);
+      if (onShareWhatsApp) {
+        onShareWhatsApp(selectedPhoto);
+      } else {
+        Alert.alert('Erro', 'Não foi possível preparar para WhatsApp');
+      }
+    }
   };
 
   const closeModal = () => {
@@ -191,20 +300,41 @@ const PhotoGrid = ({ photos = [], onPhotoPress, onRefresh, refreshing = false, u
 
                 {/* Botões de ação */}
                 <View style={styles.actionButtons}>
-                  <TouchableOpacity
-                    style={[styles.actionButton, styles.deleteButton]}
-                    onPress={handleDeletePhoto}
-                    disabled={deleting}
-                  >
-                    <Icon 
-                      name="delete" 
-                      size={20} 
-                      color="#fff" 
-                    />
-                    <Text style={styles.deleteButtonText}>
-                      {deleting ? 'Excluindo...' : 'Excluir Foto'}
-                    </Text>
-                  </TouchableOpacity>
+                  {/* Botões de compartilhamento */}
+                  {(showShareOption || showWhatsAppOption) && (
+                    <View style={styles.shareButtons}>
+                      
+                      {showShareOption && (
+                            <TouchableOpacity
+                              style={[styles.actionButton, styles.shareButton]}
+                            onPress={handleSharePhoto}
+                                      >
+                    <Icon name="ios-share" size={20} color="#fff" />
+                     <Text style={styles.shareButtonText}>
+                               Compartilhar
+                                  </Text>
+                                     </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Botão de deletar */}
+                  {showDeleteOption && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.deleteButton]}
+                      onPress={handleDeletePhoto}
+                      disabled={deleting}
+                    >
+                      <Icon 
+                        name="delete" 
+                        size={20} 
+                        color="#fff" 
+                      />
+                      <Text style={styles.deleteButtonText}>
+                        {deleting ? 'Excluindo...' : 'Excluir Foto'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </>
             )}
@@ -297,7 +427,7 @@ const styles = StyleSheet.create({
   },
   commentInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignments: 'center',
   },
   emptyContainer: {
     flex: 1,
@@ -369,6 +499,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 0,
   },
+  
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -376,7 +507,20 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     marginBottom: 10,
+    flex: 1,
   },
+  shareButton: {
+    backgroundColor: '#073022',
+    marginLeft: 5,
+  },
+  shareButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+
+  
   deleteButton: {
     backgroundColor: '#e74c3c',
   },

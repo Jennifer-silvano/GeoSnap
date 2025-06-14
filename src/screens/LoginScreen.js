@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Alert, 
+  Image, 
+  ScrollView, 
+  KeyboardAvoidingView, 
+  StatusBar,
+  SafeAreaView,
+  Platform
+  
+} from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Database from '../database/Database';
 
@@ -47,67 +61,105 @@ const LoginScreen = ({ navigation, onLogin }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.appName}>GeoSnap</Text>
-      <Text style={styles.title}>Login</Text>
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={handleLogin}
-        disabled={loading}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <Text style={styles.buttonText}>
-          {loading ? 'Entrando...' : 'Entrar'}
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.linkButton}
-        onPress={() => navigation.navigate('Register')}
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.linkText}>Não tem conta? Cadastre-se</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Espaço para a Logo */}
+        <View style={styles.logoContainer}>
+          <Image 
+            source={{ uri: 'https://cdn-icons-png.flaticon.com/512/4440/4440797.png' }}
+            style={styles.logo}
+            resizeMode="contain"
+          /> 
+          {/* Placeholder para logo - remova quando adicionar a imagem */}
+        </View>
+
+        <Text style={styles.appName}>GeoSnap</Text>
+        
+        <View style={styles.formContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#888"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Senha"
+            placeholderTextColor="#888"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+          
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? 'Entrando...' : 'Entrar'}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.linkButton}
+            onPress={() => navigation.navigate('Register')}
+          >
+            <Text style={styles.linkText}>Não tem conta? Cadastre-se</Text>
+          </TouchableOpacity>
+        </View>
+              </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f2e9e1',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   container: {
     flex: 1,
+    backgroundColor: '#f2e9e1',
+  },
+  scrollContainer: {
+    flexGrow: 1,
     padding: 20,
     justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
+    minHeight: '100%',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  logo: {
+    width: 100,
+    height: 100,
   },
   appName: {
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 10,
-    color: '#4A90E2',
+    marginBottom: 40,
+    color: '#073022',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 30,
-    color: '#333',
+  formContainer: {
+    width: '100%',
   },
   input: {
     backgroundColor: 'white',
@@ -117,9 +169,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#ddd',
+    color: '#073022',
   },
   button: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#073022',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
@@ -135,7 +188,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   linkText: {
-    color: '#4A90E2',
+    color: '#073022',
     fontSize: 16,
   },
 });

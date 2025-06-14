@@ -1,23 +1,54 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Image, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const PhotoCard = ({ photo, userName, comment, location, date }) => {
+const PhotoCard = ({ 
+  photo, 
+  userName, 
+  userProfileImage, // ← Este parâmetro estava sendo ignorado!
+  comment, 
+  location, 
+  date, 
+  isFavorite = false, 
+  onToggleFavorite, 
+  showFavorite = true 
+}) => {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {userName ? userName.charAt(0).toUpperCase() : 'U'}
-          </Text>
+          {userProfileImage ? (
+            <Image 
+              source={{ uri: userProfileImage }} 
+              style={styles.avatarImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={styles.avatarText}>
+              {userName ? userName.charAt(0).toUpperCase() : 'U'}
+            </Text>
+          )}
         </View>
         <View style={styles.userInfo}>
           <Text style={styles.userName}>{userName || 'Usuário'}</Text>
           <Text style={styles.date}>{date}</Text>
         </View>
+        {showFavorite && (
+          <TouchableOpacity onPress={onToggleFavorite} style={styles.favoriteButton}>
+            <Ionicons
+              name={isFavorite ? "heart" : "heart-outline"}
+              size={24}
+              color={isFavorite ? "#FF4458" : "#073022"}
+            />
+          </TouchableOpacity>
+        )}
       </View>
       
-      <Image source={{ uri: photo.uri }} style={styles.photo} />
+      <Image 
+        source={{ uri: photo.uri }} 
+        style={styles.photo}
+        resizeMode="cover"
+      />
       
       <View style={styles.content}>
         {comment && (
@@ -26,7 +57,7 @@ const PhotoCard = ({ photo, userName, comment, location, date }) => {
         
         {location && (
           <View style={styles.locationContainer}>
-            <Ionicons name="location-outline" size={14} color="#666" />
+            <Ionicons name="location-outline" size={14} color="#073022" />
             <Text style={styles.location}>{location}</Text>
           </View>
         )}
@@ -57,10 +88,16 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#4A90E2',
+    backgroundColor: '#073022',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden', // ← Importante para a imagem ficar redonda
+  },
+  avatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   avatarText: {
     color: 'white',
@@ -73,12 +110,16 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#073022',
   },
   date: {
     fontSize: 12,
-    color: '#666',
+    color: '#073022',
+    opacity: 0.7,
     marginTop: 2,
+  },
+  favoriteButton: {
+    padding: 5,
   },
   photo: {
     width: '100%',
@@ -90,7 +131,7 @@ const styles = StyleSheet.create({
   },
   comment: {
     fontSize: 14,
-    color: '#333',
+    color: '#073022',
     lineHeight: 20,
     marginBottom: 8,
   },
@@ -100,7 +141,8 @@ const styles = StyleSheet.create({
   },
   location: {
     fontSize: 12,
-    color: '#666',
+    color: '#073022',
+    opacity: 0.8,
     marginLeft: 4,
   },
 });
